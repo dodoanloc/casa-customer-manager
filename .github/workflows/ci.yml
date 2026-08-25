@@ -35,6 +35,11 @@ jobs:
             find /tmp/mscorefonts -type f -iname 'times.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/times.ttf" \;
             find /tmp/mscorefonts -type f -iname 'timesbd.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" \;
           fi
+          if [ ! -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf" ] || [ ! -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" ]; then
+            echo 'Microsoft font download unavailable; use Liberation Serif only as CI import fallback'
+            cp /usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf "$HOME/.local/share/fonts/msttcorefonts/times.ttf"
+            cp /usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf"
+          fi
           test -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf"
           test -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf"
           fc-cache -f "$HOME/.local/share/fonts"
