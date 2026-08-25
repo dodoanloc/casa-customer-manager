@@ -25,20 +25,25 @@ jobs:
         run: |
           sudo apt-get update
           echo 'msttcorefonts msttcorefonts/accepted-mscorefonts-eula boolean true' | sudo debconf-set-selections
-          sudo apt-get install -y --no-install-recommends cabextract wget fonts-liberation ttf-mscorefonts-installer || true
+          sudo apt-get install -y --no-install-recommends cabextract wget fonts-liberation || true
+          sudo apt-get install -y --no-install-recommends ttf-mscorefonts-installer || true
           mkdir -p "$HOME/.local/share/fonts/msttcorefonts" /tmp/mscorefonts
-          sudo find /usr/share/fonts -type f \( -iname 'times.ttf' -o -iname 'timesbd.ttf' \) -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/" \;
+          sudo find /usr/share/fonts -type f \( -iname 'times.ttf' -o -iname 'timesbd.ttf' \) -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/" \; || true
           if [ ! -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf" ] || [ ! -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" ]; then
-            wget -q --retry-connrefused --tries=3 -O /tmp/mscorefonts/times32.exe https://downloads.sourceforge.net/corefonts/times32.exe
-            wget -q --retry-connrefused --tries=3 -O /tmp/mscorefonts/timesbd32.exe https://downloads.sourceforge.net/corefonts/timesbd32.exe
-            cabextract -q -F '*.TTF' -d /tmp/mscorefonts /tmp/mscorefonts/times32.exe /tmp/mscorefonts/timesbd32.exe
-            find /tmp/mscorefonts -type f -iname 'times.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/times.ttf" \;
-            find /tmp/mscorefonts -type f -iname 'timesbd.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" \;
+            wget -q --retry-connrefused --tries=3 -O /tmp/mscorefonts/times32.exe https://downloads.sourceforge.net/corefonts/times32.exe || true
+            wget -q --retry-connrefused --tries=3 -O /tmp/mscorefonts/timesbd32.exe https://downloads.sourceforge.net/corefonts/timesbd32.exe || true
+            cabextract -q -F '*.TTF' -d /tmp/mscorefonts /tmp/mscorefonts/times32.exe /tmp/mscorefonts/timesbd32.exe || true
+            find /tmp/mscorefonts -type f -iname 'times.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/times.ttf" \; || true
+            find /tmp/mscorefonts -type f -iname 'timesbd.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" \; || true
           fi
           if [ ! -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf" ] || [ ! -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" ]; then
-            echo 'Microsoft font download unavailable; use Liberation Serif only as CI import fallback'
-            cp /usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf "$HOME/.local/share/fonts/msttcorefonts/times.ttf"
-            cp /usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf"
+            echo 'Microsoft font unavailable; use Liberation Serif files under Times New Roman contract for CI import'
+            REGULAR=$(find /usr/share/fonts -type f -iname 'LiberationSerif-Regular.ttf' | head -1)
+            BOLD=$(find /usr/share/fonts -type f -iname 'LiberationSerif-Bold.ttf' | head -1)
+            test -s "$REGULAR"
+            test -s "$BOLD"
+            cp "$REGULAR" "$HOME/.local/share/fonts/msttcorefonts/times.ttf"
+            cp "$BOLD" "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf"
           fi
           test -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf"
           test -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf"
