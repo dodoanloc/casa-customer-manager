@@ -1,0 +1,13 @@
+data/
+uploads/
+exports/
+*.db
+*.sqlite*
+*.bak
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.log
+.DS_Store

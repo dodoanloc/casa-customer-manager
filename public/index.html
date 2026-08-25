@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QUẢN LÝ CASA KHÁCH HÀNG</title>
+  <script>document.documentElement.dataset.theme=localStorage.getItem('casa-wc26-theme')||'light';</script>
+  <link rel="stylesheet" href="/static/styles.css?v=20260709-admin-modal" />
+</head>
+<body>
+  <main class="page-shell">
+    <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+    <div class="theme-float-wrap"><button id="themeToggle" class="wc26-theme-toggle" type="button"></button></div>
+    <div class="container">
+      <section class="wc-hero compact-hero">
+        <div class="field-lines"><div></div><span></span><b></b></div>
+        <div class="hero-copy"><div class="badges"><span class="badge badge-primary">AGRIBANK THỌ XUÂN</span><span class="badge badge-soft">CASA • KHÁCH HÀNG</span></div><h1><span>QUẢN LÝ</span><br><em>CASA KHÁCH HÀNG</em></h1></div>
+        <div class="hero-card casa-total-card"><span class="hot-label" id="heroCasaTitle">TỔNG CASA ĐẾN --/--/----</span><strong id="heroCasaBalance">0</strong><div class="hero-divider"></div><span class="hot-label soft" id="heroCasaAvgTitle">TỔNG SDBQ CASA ĐẾN --/--/----</span><strong class="avg-total" id="heroCasaAvgBalance">0</strong></div>
+      </section>
+      <nav class="main-tabs">
+        <button class="tab-btn active" data-tab="home">TRANG CHỦ</button>
+        <button class="tab-btn" data-tab="import">NHẬP FILE DỮ LIỆU</button>
+        <button class="tab-btn" data-tab="report">BÁO CÁO</button>
+        <button class="tab-btn" data-tab="config">CẤU HÌNH</button>
+      </nav>
+
+      <section id="tab-home" class="tab-panel active">
+        <div class="section-head"><div class="section-title"><span>▣</span><b>Dashboard 7 ngày gần nhất</b></div></div>
+        <div class="chart-card loading-wrap"><div id="dashboardLoading" class="loading-overlay hidden"><div class="spinner"></div><b>Đang tải dashboard...</b><span>Đang xử lý dữ liệu lớn, vui lòng chờ.</span></div><canvas id="dashChart" width="1400" height="420"></canvas></div>
+        <section class="top-group-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="topGroupAvgBalanceTitle">Xếp hạng nhóm theo số dư bình quân CASA</b></div><div class="period-filter"><button class="period-btn active" data-period-target="group" data-period="all" type="button">Tất cả</button><button class="period-btn" data-period-target="group" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="group" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="topGroupAvgBalanceTable"></table></div></section>
+        <section class="top-officer-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="topOfficerAvgBalanceTitle">Top 10 cán bộ có tổng số dư bình quân CASA cao nhất</b></div><div class="period-filter"><button class="period-btn active" data-period-target="officer" data-period="all" type="button">Tất cả</button><button class="period-btn" data-period-target="officer" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="officer" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="topOfficerAvgBalanceTable"></table></div></section>
+        <section class="top-officer-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="lowOfficerAvgBalanceTitle">Top 10 cán bộ có tổng số dư bình quân CASA thấp nhất</b></div><div class="period-filter"><button class="period-btn active" data-period-target="lowOfficer" data-period="all" type="button">Tất cả</button><button class="period-btn" data-period-target="lowOfficer" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="lowOfficer" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="lowOfficerAvgBalanceTable"></table></div></section>
+      </section>
+
+      <section id="tab-import" class="tab-panel">
+        <section class="upload-section"><div class="section-title"><span>▣</span><b>Import dữ liệu CASA</b></div><form id="uploadForm" class="upload-inline"><label class="file-pill"><input id="fileInput" type="file" accept=".csv,.txt,.xls,.xlsx,.xlsm" multiple required /><span>Chọn CSV/TXT/XLSX</span></label><input id="datasetName" placeholder="Tên bộ dữ liệu CASA (tuỳ chọn)" /><button class="burgundy-btn" type="submit">Import</button></form><div id="uploadStatus" class="upload-status">Header nằm dòng đầu. Hỗ trợ file số dư CASA.</div><div id="importProgressPanel" class="import-progress-panel"><div class="import-progress-head"><b id="importProgressTitle">Chưa có tác vụ import</b><span id="importProgressPct">0%</span></div><div class="import-progress-track"><span id="importProgressBar"></span></div><div id="importProgressText" class="import-progress-text">Chọn file và bấm Import để xem tiến trình xử lý.</div></div><div id="selectedFiles" class="selected-files"></div></section>
+        <section class="dataset-strip"><div class="section-title"><span>▣</span><b>Bộ dữ liệu CASA</b></div><button id="refreshBtn" class="outline-btn">Tải lại</button><div id="datasetList" class="dataset-list"></div></section>
+        <section class="summary-section"><div class="section-title"><span>▣</span><b>Thống kê nhanh</b></div><div id="summaryCards" class="summary-grid"></div></section>
+        <section class="data-section"><div class="section-head"><div class="section-title"><span>▣</span><b id="currentDataset">Chưa chọn bộ dữ liệu</b></div><div class="view-actions"><input id="searchInput" class="search-input" placeholder="Tìm khách hàng, tài khoản, đơn vị..." /><button id="searchBtn" class="outline-btn">Tìm</button><button id="xlsxBtn" class="outline-btn">Xuất Excel</button><button id="pdfBtn" class="outline-btn">Xuất PDF</button></div></div><div class="table-card"><table id="dataTable"></table></div><div class="pager"><button id="prevBtn" class="outline-btn">Trang trước</button><span id="pageInfo">0/0</span><button id="nextBtn" class="outline-btn">Trang sau</button></div></section>
+      </section>
+
+      <section id="tab-report" class="tab-panel">
+        <div class="section-title"><span>▣</span><b>Báo cáo CASA</b></div><div class="report-tabs"><button id="balanceReportTab" class="report-tab active" type="button">Báo cáo theo số dư bình quân</button><button id="turnoverReportTab" class="report-tab" type="button">Báo cáo theo doanh số</button></div>
+        <div class="report-filters report-filters-inline"><input id="reportFrom" class="search-input" type="date" /><input id="reportTo" class="search-input" type="date" /><select id="reportCurrency" class="search-input"><option value="">Tất cả tiền tệ</option><option value="VND">VND</option><option value="USD">USD</option><option value="EUR">EUR</option></select><select id="reportOfficer" class="search-input"><option value="">Tất cả cán bộ</option></select><input id="reportQ" class="search-input" placeholder="Tìm mã/tên khách hàng..." /><button id="reportRun" class="burgundy-btn">Tạo báo cáo</button><button id="reportXlsx" class="outline-btn" type="button">Xuất Excel (.xlsx)</button></div>
+        <div class="dash-grid"><div class="summary-card"><span id="reportCountLabel">Số khách hàng</span><b id="reportCount">0</b></div><div class="summary-card"><span id="reportTotalLabel">Tổng số dư bình quân</span><b id="reportTotal">0</b></div></div>
+        <div class="table-card loading-wrap"><div id="reportLoading" class="loading-overlay hidden"><div class="spinner"></div><b>Đang tạo báo cáo...</b><span>Dữ liệu lớn, hệ thống đang tổng hợp toàn bộ dòng.</span></div><table id="reportTable"></table></div>
+        <section class="customer-balance-report"><div class="section-title"><span>▣</span><b>Tìm kiếm theo từng khách hàng</b></div><div class="report-filters"><input id="customerBalanceCode" class="search-input" placeholder="Nhập mã KH" /><input id="customerBalanceFrom" class="search-input" type="date" /><input id="customerBalanceTo" class="search-input" type="date" /><button id="customerBalanceRun" class="burgundy-btn" type="button">Tìm kiếm</button></div><div id="customerBalanceMeta" class="muted report-meta">Nhập mã KH, chọn từ ngày đến ngày.</div><div class="table-card"><table id="customerBalanceTable"></table></div></section>
+      </section>
+
+      <section id="tab-config" class="tab-panel">
+        <div class="config-grid">
+          <div class="config-card wide"><div class="section-title"><span>▣</span><b>Danh sách thành viên</b></div><form id="userForm" class="config-form"><input id="userId" type="hidden"><input id="userUsername" placeholder="User" required><input id="userFullName" placeholder="Tên thành viên" required><select id="userGroup" required><option value="">Chọn nhóm</option></select><input id="userDepartment" placeholder="Bộ phận"><input id="userUnit" placeholder="Đơn vị"><button class="burgundy-btn">Lưu thành viên</button><button id="userCancelEdit" class="secondary-btn" type="button" hidden>Hủy sửa</button></form><div class="table-card mini"><table id="userTable"></table></div></div>
+          <div class="config-card wide"><div class="section-title"><span>▣</span><b>Quản lý chỉ tiêu đăng ký</b></div><form id="targetForm" class="config-form target-form"><input id="targetCode" placeholder="Mã khách hàng" required><input id="targetName" placeholder="Tên khách hàng"><input id="targetOfficer" placeholder="Cán bộ đăng ký quản lý/chăm sóc" required><input id="targetNote" placeholder="Ghi chú"><button class="burgundy-btn">Lưu chỉ tiêu</button></form><div class="table-card mini"><table id="targetTable"></table></div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="/static/app.js?v=20260718-low-officer-periods"></script>
+</body>
+</html>

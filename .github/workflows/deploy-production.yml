@@ -1,0 +1,59 @@
+name: CASA Production Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SERVICE: csv-report-webapp-8099.service
+  APP_ROOT: /opt/apps/casa-customer-manager
+  PORT: '8099'
+
+jobs:
+  deploy:
+    name: Deploy approved release
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: http://${{ secrets.PRODUCTION_HOST }}:8099
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify immutable SHA
+        run: test -n "${GITHUB_SHA}"
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          fingerprint: ${{ secrets.PRODUCTION_HOST_FINGERPRINT }}
+          script: |
+            set -euo pipefail
+            APP_ROOT='${{ env.APP_ROOT }}'
+            SHA='${{ github.sha }}'
+            SERVICE='${{ env.SERVICE }}'
+            mkdir -p "$APP_ROOT/releases/$SHA" "$APP_ROOT/shared/backups"
+            git -C "$APP_ROOT/releases/$SHA" init
+            git -C "$APP_ROOT/releases/$SHA" remote add origin "https://github.com/${{ github.repository }}.git" 2>/dev/null || true
+            git -C "$APP_ROOT/releases/$SHA" fetch --depth 1 origin "$SHA"
+            git -C "$APP_ROOT/releases/$SHA" checkout -f FETCH_HEAD
+            cp "$APP_ROOT/shared/data/app.db" "$APP_ROOT/shared/backups/app.db.$(date +%Y%m%d-%H%M%S).bak"
+            ln -sfn "$APP_ROOT/shared/data" "$APP_ROOT/releases/$SHA/data"
+            ln -sfn "$APP_ROOT/shared/uploads" "$APP_ROOT/releases/$SHA/uploads"
+            ln -sfn "$APP_ROOT/shared/exports" "$APP_ROOT/releases/$SHA/exports"
+            ln -sfn "$APP_ROOT/shared/chunks" "$APP_ROOT/releases/$SHA/chunks"
+            ln -sfn "$APP_ROOT/releases/$SHA" "$APP_ROOT/current"
+            systemctl --user restart "$SERVICE"
+            curl --fail --silent --show-error "http://127.0.0.1:${{ env.PORT }}/" >/dev/null
+            find "$APP_ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2- | xargs -r rm -rf
+      - name: Deployment summary
+        run: echo "Deployed $GITHUB_SHA to production after Environment approval" 
+
+# Required GitHub Environment: production
+# Required reviewers: ktnqagribanktx-lang
+# Required secrets: PRODUCTION_HOST, PRODUCTION_USER, PRODUCTION_SSH_KEY, PRODUCTION_HOST_FINGERPRINT
+# SSH deploy user must be restricted to CASA release/deploy commands.

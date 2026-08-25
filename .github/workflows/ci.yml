@@ -1,0 +1,31 @@
+name: CASA CI
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt
+      - run: python -m py_compile server.py
+      - run: python -m compileall -q . -x '^(data|uploads|exports|\.git|\.venv)/'
+      - name: Import app
+        run: python -c "import server; print(server.app.title)"
+      - name: Secret/data guard
+        run: |
+          ! git ls-files | grep -E '(^|/)(data|uploads|exports)/|\.db$|\.sqlite|\.bak$|\.env$|\.key$'
+          ! git grep -nE 'github_pat_|ghp_|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY'
+      - name: Frontend syntax
+        run: node --check public/app.js
