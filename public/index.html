@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>QUẢN LÝ CASA KHÁCH HÀNG</title>
   <script>document.documentElement.dataset.theme=localStorage.getItem('casa-wc26-theme')||'light';</script>
-  <link rel="stylesheet" href="/static/styles.css?v=20260709-admin-modal" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260825-prev-month" />
 </head>
 <body>
   <main class="page-shell">
@@ -27,9 +27,9 @@
       <section id="tab-home" class="tab-panel active">
         <div class="section-head"><div class="section-title"><span>▣</span><b>Dashboard 7 ngày gần nhất</b></div></div>
         <div class="chart-card loading-wrap"><div id="dashboardLoading" class="loading-overlay hidden"><div class="spinner"></div><b>Đang tải dashboard...</b><span>Đang xử lý dữ liệu lớn, vui lòng chờ.</span></div><canvas id="dashChart" width="1400" height="420"></canvas></div>
-        <section class="top-group-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="topGroupAvgBalanceTitle">Xếp hạng nhóm theo số dư bình quân CASA</b></div><div class="period-filter"><button class="period-btn active" data-period-target="group" data-period="all" type="button">Tất cả</button><button class="period-btn" data-period-target="group" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="group" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="topGroupAvgBalanceTable"></table></div></section>
-        <section class="top-officer-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="topOfficerAvgBalanceTitle">Top 10 cán bộ có tổng số dư bình quân CASA cao nhất</b></div><div class="period-filter"><button class="period-btn active" data-period-target="officer" data-period="all" type="button">Tất cả</button><button class="period-btn" data-period-target="officer" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="officer" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="topOfficerAvgBalanceTable"></table></div></section>
-        <section class="top-officer-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="lowOfficerAvgBalanceTitle">Top 10 cán bộ có tổng số dư bình quân CASA thấp nhất</b></div><div class="period-filter"><button class="period-btn active" data-period-target="lowOfficer" data-period="all" type="button">Tất cả</button><button class="period-btn" data-period-target="lowOfficer" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="lowOfficer" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="lowOfficerAvgBalanceTable"></table></div></section>
+        <section class="top-group-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="topGroupAvgBalanceTitle">Xếp hạng nhóm theo số dư bình quân CASA</b></div><div class="period-filter"><button class="period-btn active" data-period-target="group" data-period="prev_month" type="button">Tháng trước</button><button class="period-btn" data-period-target="group" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="group" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="topGroupAvgBalanceTable"></table></div></section>
+        <section class="top-officer-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="topOfficerAvgBalanceTitle">Top 10 cán bộ có tổng số dư bình quân CASA cao nhất</b></div><div class="period-filter"><button class="period-btn active" data-period-target="officer" data-period="prev_month" type="button">Tháng trước</button><button class="period-btn" data-period-target="officer" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="officer" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="topOfficerAvgBalanceTable"></table></div></section>
+        <section class="top-officer-card"><div class="section-head top-filter-head"><div class="section-title"><span>▣</span><b id="lowOfficerAvgBalanceTitle">Top 10 cán bộ có tổng số dư bình quân CASA thấp nhất</b></div><div class="period-filter"><button class="period-btn active" data-period-target="lowOfficer" data-period="prev_month" type="button">Tháng trước</button><button class="period-btn" data-period-target="lowOfficer" data-period="month" type="button">Tháng này</button><button class="period-btn" data-period-target="lowOfficer" data-period="week" type="button">Tuần này</button></div></div><div class="table-card"><table id="lowOfficerAvgBalanceTable"></table></div></section>
       </section>
 
       <section id="tab-import" class="tab-panel">
@@ -55,6 +55,6 @@
       </section>
     </div>
   </main>
-  <script src="/static/app.js?v=20260718-low-officer-periods"></script>
+  <script src="/static/app.js?v=20260825-prev-month-over5m"></script>
 </body>
 </html>

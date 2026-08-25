@@ -882,6 +882,12 @@ def avg_balance_period_bounds(c, period: str):
         start = dt - timedelta(days=6)
     elif period == "month":
         start = dt.replace(day=1)
+    elif period == "prev_month":
+        current_month_start = dt.replace(day=1)
+        latest_prev_day = current_month_start - timedelta(days=1)
+        start = latest_prev_day.replace(day=1)
+        latest = latest_prev_day.strftime("%Y-%m-%d")
+        dt = latest_prev_day
     else:
         start = None
     return (start.strftime("%Y-%m-%d") if start else None), latest, dt.strftime("%d/%m/%Y")
@@ -942,7 +948,7 @@ def dashboard_top_avg_balance(period: str = "all", _skip_cache: bool = False):
 @app.get("/api/dashboard/top-officer-avg-balance")
 def dashboard_top_officer_avg_balance(period: str = "all", ranking: str = "high", _skip_cache: bool = False):
     ranking = "low" if ranking == "low" else "high"
-    cache_key = f"top_officer_avg_balance:v6:{period}:{ranking}"
+    cache_key = f"top_officer_avg_balance:v7:{period}:{ranking}"
     if not _skip_cache:
         cached = cache_get(cache_key)
         if cached is not None:
@@ -1013,15 +1019,25 @@ def dashboard_top_officer_avg_balance(period: str = "all", ranking: str = "high"
                 SELECT officer_name, customer_code, account_number, AVG(daily_balance) AS avg_balance
                 FROM daily_accounts
                 GROUP BY officer_name, customer_code, account_number
+            ), customer_daily AS (
+                SELECT officer_name, customer_code, value_date, SUM(daily_balance) AS daily_balance
+                FROM daily_accounts
+                GROUP BY officer_name, customer_code, value_date
+            ), customer_averages AS (
+                SELECT officer_name, customer_code, AVG(daily_balance) AS avg_balance
+                FROM customer_daily
+                GROUP BY officer_name, customer_code
             ), officer_totals AS (
-                SELECT officer_name,
-                       COUNT(DISTINCT CASE WHEN avg_balance > 0 THEN customer_code END) AS customer_count,
-                       COUNT(DISTINCT CASE WHEN avg_balance > 0 THEN account_number END) AS account_count,
-                       SUM(avg_balance) AS total_avg_balance
-                FROM account_averages
-                GROUP BY officer_name
+                SELECT aa.officer_name,
+                       COUNT(DISTINCT CASE WHEN aa.avg_balance > 0 THEN aa.customer_code END) AS customer_count,
+                       COUNT(DISTINCT CASE WHEN aa.avg_balance > 0 THEN aa.account_number END) AS account_count,
+                       COUNT(DISTINCT CASE WHEN ca.avg_balance > 5000000 THEN ca.customer_code END) AS customer_count_over_5m,
+                       SUM(aa.avg_balance) AS total_avg_balance
+                FROM account_averages aa
+                LEFT JOIN customer_averages ca ON ca.officer_name=aa.officer_name AND ca.customer_code=aa.customer_code
+                GROUP BY aa.officer_name
             )
-            SELECT officer_name, customer_count, account_count, total_avg_balance
+            SELECT officer_name, customer_count, account_count, customer_count_over_5m, total_avg_balance
             FROM officer_totals
             {exclusion_sql}
             {having_sql}
@@ -1042,7 +1058,7 @@ def dashboard_top_officer_avg_balance(period: str = "all", ranking: str = "high"
                 ORDER BY officer_name
             """, excluded_low_officers).fetchall()
             recs = list(recs) + [
-                {"officer_name": r["officer_name"], "customer_count": 0, "account_count": 0, "total_avg_balance": 0}
+                {"officer_name": r["officer_name"], "customer_count": 0, "account_count": 0, "customer_count_over_5m": 0, "total_avg_balance": 0}
                 for r in zero_officers if r["officer_name"] not in ranked_names
             ]
             recs = sorted(recs, key=lambda r: (float(r["total_avg_balance"] or 0), str(r["officer_name"] or "")))[:10]
@@ -1074,6 +1090,7 @@ def dashboard_top_officer_avg_balance(period: str = "all", ranking: str = "high"
             "officer_name": r["officer_name"] or "",
             "customer_count": int(r["customer_count"] or 0),
             "account_count": int(r["account_count"] or 0),
+            "customer_count_over_5m": int(r["customer_count_over_5m"] or 0),
             "total_avg_balance": float(r["total_avg_balance"] or 0),
         } for r in recs],
         "matches": local_rows,
