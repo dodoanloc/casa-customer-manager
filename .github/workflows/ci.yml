@@ -25,9 +25,16 @@ jobs:
         run: |
           sudo apt-get update
           echo 'msttcorefonts msttcorefonts/accepted-mscorefonts-eula boolean true' | sudo debconf-set-selections
-          sudo apt-get install -y --no-install-recommends cabextract fonts-liberation ttf-mscorefonts-installer
-          mkdir -p "$HOME/.local/share/fonts/msttcorefonts"
+          sudo apt-get install -y --no-install-recommends cabextract wget fonts-liberation ttf-mscorefonts-installer || true
+          mkdir -p "$HOME/.local/share/fonts/msttcorefonts" /tmp/mscorefonts
           sudo find /usr/share/fonts -type f \( -iname 'times.ttf' -o -iname 'timesbd.ttf' \) -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/" \;
+          if [ ! -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf" ] || [ ! -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" ]; then
+            wget -q --retry-connrefused --tries=3 -O /tmp/mscorefonts/times32.exe https://downloads.sourceforge.net/corefonts/times32.exe
+            wget -q --retry-connrefused --tries=3 -O /tmp/mscorefonts/timesbd32.exe https://downloads.sourceforge.net/corefonts/timesbd32.exe
+            cabextract -q -F '*.TTF' -d /tmp/mscorefonts /tmp/mscorefonts/times32.exe /tmp/mscorefonts/timesbd32.exe
+            find /tmp/mscorefonts -type f -iname 'times.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/times.ttf" \;
+            find /tmp/mscorefonts -type f -iname 'timesbd.ttf' -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf" \;
+          fi
           test -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf"
           test -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf"
           fc-cache -f "$HOME/.local/share/fonts"
