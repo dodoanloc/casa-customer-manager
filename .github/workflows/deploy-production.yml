@@ -1,9 +1,15 @@
 name: CASA Production Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Type DEPLOY-CASA-8099 to continue'
+        required: true
+        type: string
+
+# Manual-only until GitHub plan supports required Environment reviewers.
+# Do not enable push-to-main trigger without a verified production protection rule.
 
 permissions:
   contents: read
@@ -21,6 +27,9 @@ jobs:
       name: production
       url: http://${{ secrets.PRODUCTION_HOST }}:8099
     steps:
+      - name: Confirm production deploy
+        if: inputs.confirm_production != 'DEPLOY-CASA-8099'
+        run: exit 1
       - uses: actions/checkout@v4
       - name: Verify immutable SHA
         run: test -n "${GITHUB_SHA}"
