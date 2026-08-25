@@ -17,7 +17,7 @@ permissions:
 
 env:
   SERVICE: csv-report-webapp-8099.service
-  APP_ROOT: /opt/apps/casa-customer-manager
+  APP_ROOT: /home/locdodoan/.openclaw/workspace/csv-report-webapp-6666
   PORT: '8099'
 
 jobs:
@@ -45,20 +45,36 @@ jobs:
             APP_ROOT='${{ env.APP_ROOT }}'
             SHA='${{ github.sha }}'
             SERVICE='${{ env.SERVICE }}'
-            mkdir -p "$APP_ROOT/releases/$SHA" "$APP_ROOT/shared/backups"
-            git -C "$APP_ROOT/releases/$SHA" init
-            git -C "$APP_ROOT/releases/$SHA" remote add origin "https://github.com/${{ github.repository }}.git" 2>/dev/null || true
-            git -C "$APP_ROOT/releases/$SHA" fetch --depth 1 origin "$SHA"
-            git -C "$APP_ROOT/releases/$SHA" checkout -f FETCH_HEAD
-            cp "$APP_ROOT/shared/data/app.db" "$APP_ROOT/shared/backups/app.db.$(date +%Y%m%d-%H%M%S).bak"
-            ln -sfn "$APP_ROOT/shared/data" "$APP_ROOT/releases/$SHA/data"
-            ln -sfn "$APP_ROOT/shared/uploads" "$APP_ROOT/releases/$SHA/uploads"
-            ln -sfn "$APP_ROOT/shared/exports" "$APP_ROOT/releases/$SHA/exports"
-            ln -sfn "$APP_ROOT/shared/chunks" "$APP_ROOT/releases/$SHA/chunks"
-            ln -sfn "$APP_ROOT/releases/$SHA" "$APP_ROOT/current"
+            if [ ! -d "$APP_ROOT" ]; then
+              echo "::error::APP_ROOT $APP_ROOT not found on runner"
+              exit 1
+            fi
+            if [ ! -f "$APP_ROOT/server.py" ]; then
+              echo "::error::server.py missing at $APP_ROOT"
+              exit 1
+            fi
+            if ! systemctl --user is-enabled "$SERVICE" >/dev/null 2>&1; then
+              echo "::error::$SERVICE not enabled for this user"
+              exit 1
+            fi
+            mkdir -p "$APP_ROOT/releases/$SHA" "$APP_ROOT/backups"
+            cd "$APP_ROOT"
+            if [ ! -d "$APP_ROOT/.git" ] || [ ! -f "$APP_ROOT/.git/HEAD" ]; then
+              echo "::error::$APP_ROOT is not a git working tree"
+              exit 1
+            fi
+            git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" || true
+            git fetch --depth 1 origin "$SHA"
+            git checkout -f FETCH_HEAD
+            cp -f "$APP_ROOT/shared/data/app.db" "$APP_ROOT/backups/app.db.$(date +%Y%m%d-%H%M%S).bak" 2>/dev/null || true
             systemctl --user restart "$SERVICE"
-            curl --fail --silent --show-error "http://127.0.0.1:${{ env.PORT }}/" >/dev/null
-            find "$APP_ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | tail -n +6 | cut -d' ' -f2- | xargs -r rm -rf
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:${{ env.PORT }}/api/health" >/dev/null; then
+                break
+              fi
+              sleep 2
+            done
+            curl --fail --silent --show-error "http://127.0.0.1:${{ env.PORT }}/api/health"
       - name: Deployment summary
         run: echo "Deployed $GITHUB_SHA to production after Environment approval" 
 
