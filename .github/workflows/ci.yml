@@ -19,6 +19,15 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
+      - name: Install Times New Roman fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cabextract fonts-liberation ttf-mscorefonts-installer
+          mkdir -p "$HOME/.local/share/fonts/msttcorefonts"
+          sudo find /usr/share/fonts -type f \( -iname 'times.ttf' -o -iname 'timesbd.ttf' \) -exec cp {} "$HOME/.local/share/fonts/msttcorefonts/" \;
+          test -s "$HOME/.local/share/fonts/msttcorefonts/times.ttf"
+          test -s "$HOME/.local/share/fonts/msttcorefonts/timesbd.ttf"
+          fc-cache -f "$HOME/.local/share/fonts"
       - run: python -m py_compile server.py
       - run: python -m compileall -q . -x '^(data|uploads|exports|\.git|\.venv)/'
       - name: Import app
