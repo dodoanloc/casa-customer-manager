@@ -26,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: http://${{ secrets.PRODUCTION_HOST }}:8099
     steps:
       - name: Confirm production deploy
         if: github.event_name == 'workflow_dispatch' && inputs.confirm_production != 'DEPLOY-CASA-8099'
