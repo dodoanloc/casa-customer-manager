@@ -26,6 +26,6 @@ jobs:
       - name: Secret/data guard
         run: |
           ! git ls-files | grep -E '(^|/)(data|uploads|exports)/|\.db$|\.sqlite|\.bak$|\.env$|\.key$'
-          ! git grep -nE 'github_pat_|ghp_|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY'
+          ! git grep -nE 'github_pat_|ghp_|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' -- ':(exclude).github/workflows/ci.yml'
       - name: Frontend syntax
         run: node --check public/app.js
