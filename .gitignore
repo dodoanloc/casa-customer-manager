@@ -1,6 +1,7 @@
 data/
 uploads/
 exports/
+chunks/
 *.db
 *.sqlite*
 *.bak
