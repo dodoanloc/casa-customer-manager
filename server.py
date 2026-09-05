@@ -1520,14 +1520,6 @@ def export_xlsx(dataset_id: str, q: str = ""):
     wb.save(out)
     return FileResponse(out, filename=f"{ds['name']}.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-@app.get("/api/export/{dataset_id}.csv")
-def export_csv(dataset_id: str):
-    ds = dataset_or_404(dataset_id)
-    stored = Path(ds["stored_path"])
-    if not stored.exists():
-        raise HTTPException(404, "File CSV nguồn không còn tồn tại trên đĩa")
-    return FileResponse(stored, filename=f"{ds['name']}.csv", media_type="text/csv; charset=utf-8")
-
 @app.get("/api/export/{dataset_id}.pdf")
 def export_pdf(dataset_id: str, q: str = ""):
     ds = dataset_or_404(dataset_id)
