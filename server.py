@@ -193,25 +193,29 @@ def init_db():
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_dp01_validation_account ON dp01_validation_rows(account_number)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_dp01_validation_date ON dp01_validation_rows(value_date)")
-        # Migrate legacy mixed DP01 data once: preserve 211108 names for ASXH,
-        # then remove every 211108 row from CASA balances/averages/dashboards.
-        c.execute("""
-            INSERT OR IGNORE INTO dp01_validation_rows
-            SELECT dataset_id,row_no,value_date,branch_code,account_ledger,customer_code,
-                   customer_name,product_name,currency,current_balance,rate,account_number,search_text
-            FROM account_balance_rows WHERE account_ledger='211108'
-        """)
-        c.execute("DELETE FROM account_balance_rows WHERE account_ledger<>'421101'")
-        c.execute("""
-            DELETE FROM rows
-            WHERE dataset_id IN (SELECT id FROM datasets WHERE dataset_kind='balance')
-              AND json_extract(data_json, '$.TAI_KHOAN_HACH_TOAN')='211108'
-        """)
-        c.execute("""
-            UPDATE datasets
-            SET row_count=(SELECT count(*) FROM rows WHERE rows.dataset_id=datasets.id)
-            WHERE dataset_kind='balance'
-        """)
+        c.execute("CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY)")
+        if not c.execute("SELECT 1 FROM schema_migrations WHERE version='211108_cleanup'").fetchone():
+            c.execute("""
+                INSERT OR IGNORE INTO dp01_validation_rows
+                SELECT dataset_id,row_no,value_date,branch_code,account_ledger,customer_code,
+                       customer_name,product_name,currency,current_balance,rate,account_number,search_text
+                FROM account_balance_rows WHERE account_ledger='211108'
+            """)
+            c.execute("DELETE FROM account_balance_rows WHERE account_ledger<>'421101'")
+            c.execute("""
+                DELETE FROM rows
+                WHERE dataset_id IN (SELECT id FROM datasets WHERE dataset_kind='balance')
+                  AND json_extract(data_json, '$.TAI_KHOAN_HACH_TOAN')='211108'
+            """)
+            c.execute("""
+                UPDATE datasets
+                SET row_count=(SELECT count(*) FROM rows WHERE rows.dataset_id=datasets.id)
+                WHERE dataset_kind='balance'
+            """)
+            c.execute("DELETE FROM report_rows WHERE dataset_id NOT IN (SELECT id FROM datasets)")
+            c.execute("DELETE FROM account_balance_rows WHERE dataset_id NOT IN (SELECT id FROM datasets)")
+            c.execute("DELETE FROM rows WHERE dataset_id NOT IN (SELECT id FROM datasets)")
+            c.execute("INSERT OR IGNORE INTO schema_migrations(version) VALUES('211108_cleanup')")
         c.execute("""
         CREATE TABLE IF NOT EXISTS precomputed_cache(
             cache_key TEXT PRIMARY KEY,
@@ -219,9 +223,6 @@ def init_db():
             updated_at TEXT NOT NULL
         )
         """)
-        c.execute("DELETE FROM report_rows WHERE dataset_id NOT IN (SELECT id FROM datasets)")
-        c.execute("DELETE FROM account_balance_rows WHERE dataset_id NOT IN (SELECT id FROM datasets)")
-        c.execute("DELETE FROM rows WHERE dataset_id NOT IN (SELECT id FROM datasets)")
 
 init_db()
 
@@ -1394,6 +1395,140 @@ def report_turnover_xlsx(from_date: str = "", to_date: str = "", q: str = "", cu
     out = EXPORT_DIR / f"bao-cao-doanh-so-theo-ma-kh-{int(datetime.now().timestamp())}.xlsx"
     wb.save(out)
     return FileResponse(out, filename="bao-cao-doanh-so-theo-ma-kh.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+@app.get("/api/report/casa-decrease")
+def report_casa_decrease(report_date: str = "", prev_date: str = "", from_date: str = "", to_date: str = "", q: str = "", currency: str = "", officer: str = ""):
+    with conn() as c:
+        latest_date = c.execute("SELECT MAX(value_date) AS d FROM account_balance_rows WHERE dataset_id IN (SELECT id FROM datasets)").fetchone()["d"] or ""
+        
+        rd_raw = report_date or to_date or from_date
+        parsed_rd = parse_any_date(rd_raw)
+        target_report_date = parsed_rd.strftime("%Y-%m-%d") if parsed_rd else latest_date
+        
+        if not target_report_date:
+            return {"report_date": "", "prev_date": "", "report_date_fmt": "--", "prev_date_fmt": "--", "count": 0, "total_decrease": 0, "rows": []}
+            
+        pd_raw = prev_date if (prev_date and prev_date != rd_raw) else ""
+        parsed_pd = parse_any_date(pd_raw)
+        if parsed_pd and parsed_pd.strftime("%Y-%m-%d") < target_report_date:
+            target_prev_date = parsed_pd.strftime("%Y-%m-%d")
+        else:
+            prev_row = c.execute("SELECT MAX(value_date) AS d FROM account_balance_rows WHERE value_date < ? AND dataset_id IN (SELECT id FROM datasets)", (target_report_date,)).fetchone()
+            target_prev_date = prev_row["d"] if prev_row and prev_row["d"] else ""
+
+        if not target_prev_date:
+            report_date_fmt = datetime.strptime(target_report_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+            return {
+                "report_date": target_report_date,
+                "prev_date": "",
+                "report_date_fmt": report_date_fmt,
+                "prev_date_fmt": "--",
+                "count": 0,
+                "total_decrease": 0,
+                "rows": []
+            }
+
+        where = "b.dataset_id IN (SELECT id FROM datasets) AND b.value_date IN (?, ?)"
+        params: List[Any] = [target_report_date, target_prev_date]
+        
+        cur = str(currency or "").strip().upper()
+        if cur:
+            where += " AND UPPER(b.currency)=?"
+            params.append(cur)
+            
+        if q.strip():
+            where += " AND b.search_text LIKE ?"
+            params.append(f"%{q.strip().lower()}%")
+            
+        officer_name = str(officer or "").strip()
+        if officer_name:
+            where += " AND EXISTS (SELECT 1 FROM customer_targets t WHERE t.customer_code=b.customer_code AND t.officer_name LIKE ? COLLATE NOCASE)"
+            params.append(f"%{officer_name}%")
+
+        query = f"""
+            SELECT 
+                d_union.customer_code,
+                MAX(d_union.customer_name) AS customer_name,
+                d_union.currency,
+                COALESCE(MAX(t.officer_name), '') AS registered_officer,
+                SUM(CASE WHEN d_union.value_date = ? THEN d_union.balance ELSE 0 END) AS current_balance,
+                SUM(CASE WHEN d_union.value_date = ? THEN d_union.balance ELSE 0 END) AS prev_balance
+            FROM (
+                SELECT b.customer_code, MAX(b.customer_name) AS customer_name, b.currency, b.value_date, SUM(b.current_balance) AS balance
+                FROM account_balance_rows b
+                WHERE {where}
+                GROUP BY b.customer_code, b.currency, b.value_date
+            ) d_union
+            LEFT JOIN customer_targets t ON t.customer_code = d_union.customer_code
+            GROUP BY d_union.customer_code, d_union.currency
+            HAVING (prev_balance - current_balance) > 0
+            ORDER BY CASE UPPER(COALESCE(d_union.currency,'')) WHEN 'VND' THEN 1 WHEN 'USD' THEN 2 WHEN 'EUR' THEN 3 ELSE 4 END,
+                     (prev_balance - current_balance) DESC, d_union.customer_code
+        """
+        
+        full_params = [target_report_date, target_prev_date] + params
+        recs = c.execute(query, full_params).fetchall()
+        
+        rows = []
+        total_decrease = 0.0
+        for r in recs:
+            cur_bal = float(r["current_balance"] or 0)
+            prv_bal = float(r["prev_balance"] or 0)
+            dec_amt = prv_bal - cur_bal
+            dec_pct = (dec_amt / prv_bal * 100.0) if prv_bal > 0 else 100.0
+            total_decrease += dec_amt
+            rows.append({
+                "customer_code": r["customer_code"] or "(trống)",
+                "customer_name": r["customer_name"] or "",
+                "registered_officer": r["registered_officer"] or "",
+                "currency": r["currency"] or "",
+                "prev_balance": prv_bal,
+                "current_balance": cur_bal,
+                "decrease_amount": dec_amt,
+                "decrease_percent": round(dec_pct, 2),
+            })
+
+        report_date_fmt = datetime.strptime(target_report_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+        prev_date_fmt = datetime.strptime(target_prev_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+
+        return {
+            "report_date": target_report_date,
+            "prev_date": target_prev_date,
+            "report_date_fmt": report_date_fmt,
+            "prev_date_fmt": prev_date_fmt,
+            "count": len(rows),
+            "total_decrease": round(total_decrease, 2),
+            "rows": rows
+        }
+
+@app.get("/api/report/casa-decrease.xlsx")
+def report_casa_decrease_xlsx(report_date: str = "", prev_date: str = "", from_date: str = "", to_date: str = "", q: str = "", currency: str = "", officer: str = ""):
+    data = report_casa_decrease(report_date, prev_date, from_date, to_date, q, currency, officer)
+    wb = Workbook()
+    ws = wb.active or wb.create_sheet()
+    ws.title = "Bao cao KH giam CASA"
+    prev_fmt = data.get("prev_date_fmt", "")
+    rpt_fmt = data.get("report_date_fmt", "")
+    ws.append(["STT", "Mã KH", "Tên KH", "Cán bộ quản lý", "Loại tiền tệ", f"Số dư ngày trước ({prev_fmt})", f"Số dư ngày báo cáo ({rpt_fmt})", "Số tiền giảm", "Tỷ lệ giảm (%)"])
+    for i, r in enumerate(data.get("rows", []), start=1):
+        ws.append([
+            i,
+            r.get("customer_code", ""),
+            r.get("customer_name", ""),
+            r.get("registered_officer", ""),
+            r.get("currency", ""),
+            r.get("prev_balance", 0),
+            r.get("current_balance", 0),
+            r.get("decrease_amount", 0),
+            r.get("decrease_percent", 0),
+        ])
+    ws.append([])
+    ws.append(["Tổng số KH giảm CASA", data.get("count", 0)])
+    ws.append(["Tổng số tiền giảm CASA", data.get("total_decrease", 0)])
+    ws.append(["Kỳ so sánh", f"{rpt_fmt} vs {prev_fmt}"])
+    out = EXPORT_DIR / f"bao-cao-kh-giam-casa-{data.get('report_date', 'all')}-{int(datetime.now().timestamp())}.xlsx"
+    wb.save(out)
+    return FileResponse(out, filename=f"bao-cao-kh-giam-casa-{data.get('report_date', 'all')}.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @app.get("/api/config")
 def config_get():
